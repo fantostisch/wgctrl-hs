@@ -1,0 +1,5 @@
+wgctrl-hs
+
+build/
+.stack-work/
+*~

@@ -1,0 +1,103 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           wgctrl-hs
+version:        0.1.0.0
+homepage:       https://github.com/fantostisch/wgctrl-hs#readme
+bug-reports:    https://github.com/fantostisch/wgctrl-hs/issues
+license:        GPL-3.0-or-later
+license-file:   LICENSE
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/fantostisch/wgctrl-hs
+
+library
+  exposed-modules:
+      Network.WireGuard.Ctrl
+      Network.WireGuard.Ctrl.Client
+      Network.WireGuard.Ctrl.Config
+      Network.WireGuard.Ctrl.Internal.ClientLinux
+      Network.WireGuard.Ctrl.Internal.Const
+      Network.WireGuard.Ctrl.PeerConfig
+      Network.WireGuard.Ctrl.Types
+  other-modules:
+      Paths_wgctrl_hs
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wpartial-fields
+  build-depends:
+      atomic-primops
+    , base >=4.7 && <5
+    , bytestring
+    , cereal
+    , containers
+    , cryptonite
+    , iproute
+    , memory
+    , netlink
+    , network
+    , text
+  default-language: Haskell2010
+
+executable wgctrl-hs
+  main-is: Main.hs
+  other-modules:
+      Network.WireGuard.Ctrl
+      Network.WireGuard.Ctrl.Client
+      Network.WireGuard.Ctrl.Config
+      Network.WireGuard.Ctrl.Internal.ClientLinux
+      Network.WireGuard.Ctrl.Internal.Const
+      Network.WireGuard.Ctrl.PeerConfig
+      Network.WireGuard.Ctrl.Types
+      Paths_wgctrl_hs
+  hs-source-dirs:
+      app
+      src
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wpartial-fields -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      atomic-primops
+    , base >=4.7 && <5
+    , base16-bytestring
+    , bytestring
+    , cereal
+    , containers
+    , cryptonite
+    , either
+    , iproute
+    , memory
+    , netlink
+    , network
+    , text
+  default-language: Haskell2010
+
+test-suite wgctrl-hs-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      ClientLinuxSpec
+      Paths_wgctrl_hs
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wpartial-fields -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      atomic-primops
+    , base >=4.7 && <5
+    , base16-bytestring
+    , bytestring
+    , cereal
+    , containers
+    , cryptonite
+    , either
+    , hspec
+    , iproute
+    , memory
+    , netlink
+    , network
+    , text
+    , wgctrl-hs
+  default-language: Haskell2010

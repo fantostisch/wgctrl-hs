@@ -1,0 +1,59 @@
+name: wgctrl-hs
+version: 0.1.0.0
+github: fantostisch/wgctrl-hs
+license: GPL-3.0-or-later
+
+dependencies:
+  - atomic-primops
+  - base >= 4.7 && < 5
+  - bytestring
+  - cereal
+  - containers
+  - cryptonite
+  - iproute
+  - memory
+  - netlink
+  - network
+  - text
+
+library:
+  source-dirs: src
+  ghc-options:
+    - -Wall
+    - -Wincomplete-uni-patterns
+    - -Wpartial-fields
+
+executables:
+  wgctrl-hs:
+    main: Main.hs
+    source-dirs:
+      - app
+      - src
+    dependencies:
+      - base16-bytestring
+      - either
+    ghc-options:
+      - -Wall
+      - -Wincomplete-uni-patterns
+      - -Wpartial-fields
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+
+tests:
+  wgctrl-hs-test:
+    main: Spec.hs
+    source-dirs:
+      - test
+    dependencies:
+      - wgctrl-hs
+      - base16-bytestring
+      - either
+      - hspec
+    ghc-options:
+      - -Wall
+      - -Wincomplete-uni-patterns
+      - -Wpartial-fields
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
