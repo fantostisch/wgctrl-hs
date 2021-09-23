@@ -82,7 +82,7 @@ initClient :: NetlinkSocket -> IO ClientLinux
 initClient s = do
   (pid, mFamID) <- getFamilyIdAndPID s Const.genlName
   {-- familyIdRequest in netlink-hs uses 33 as sequence number --}
-  seqNumCounter <- Counter.newCounter $ 33 + 1
+  seqNumCounter <- Counter.newCounter $ 33
   case mFamID of
     Just famID ->
       pure $
