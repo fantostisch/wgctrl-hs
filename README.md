@@ -28,9 +28,16 @@ stack build --fast --file-watch
 Running Main.hs example:
 
 ```sh
-stack build --fast --copy-bins --local-bin-path=. wgctrl-hs && 
+stack build --fast --copy-bins --local-bin-path=. wgctrl-hs &&
   sudo setcap cap_net_admin=ep ./wgctrl-hs &&
   ./wgctrl-hs
+```
+
+Running Main.hs with stack traces:
+```sh
+stack build --fast --profile --copy-bins --local-bin-path=. wgctrl-hs &&
+  sudo setcap cap_net_admin=ep ./wgctrl-hs &&
+  ./wgctrl-hs +RTS -xc -RTS
 ```
 
 ### Testing
