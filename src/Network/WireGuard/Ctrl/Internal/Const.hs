@@ -1,10 +1,15 @@
 module Network.WireGuard.Ctrl.Internal.Const where
 
-import Data.Bits (shift)
+import Data.Bits (shift, (.|.))
 import Data.Word (Word16, Word32, Word8)
+import System.Linux.Netlink.Constants (fNLM_F_MATCH, fNLM_F_ROOT)
 
 nested :: Word16
 nested = 0x8000
+
+--todo: should be in netlink-hs
+fNLM_F_DUMP :: Word16
+fNLM_F_DUMP = fNLM_F_ROOT .|. fNLM_F_MATCH
 
 -- Based on https://github.com/WireGuard/wgctrl-go/blob/2a9a29e81620f94626729d3c1b49ce184395dfd0/internal/wglinux/internal/wgh/const.go
 
@@ -61,7 +66,7 @@ data WGDeviceAttribute
   | DeviceAFwmark
   | DeviceAPeers
   | DeviceALast
-  deriving (Enum)
+  deriving (Enum, Show)
 
 data WGPeerAttribute
   = PeerAUnspec
@@ -76,7 +81,7 @@ data WGPeerAttribute
   | PeerAAllowedips
   | PeerAProtocolVersion
   | PeerALast
-  deriving (Enum)
+  deriving (Enum, Show)
 
 data WGAllowedipAttribute
   = AllowedipAUnspec
@@ -84,4 +89,4 @@ data WGAllowedipAttribute
   | AllowedipAIpaddr
   | AllowedipACidrMask
   | AllowedipALast
-  deriving (Enum)
+  deriving (Enum, Show)

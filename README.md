@@ -1,6 +1,6 @@
 # WireGuard Control Haskell (wgctrl-hs)
 
-Enables control of WireGuard Linux kernel module using the [WireGuard Netlink API](https://git.zx2c4.com/WireGuard/tree/src/uapi/wireguard.h). Supports configuring a WireGuard device, but does not yet support retrieving information from a WireGuard device. Implementation based on [wgctrl-go](https://github.com/WireGuard/wgctrl-go). Until batching is implemented, changing, adding or removing a lot of peers in 1 call will fail. [Example usage](app/Main.hs).
+Enables control of WireGuard Linux kernel module using the [WireGuard Netlink API](https://git.zx2c4.com/WireGuard/tree/src/uapi/wireguard.h). Supports configuring a WireGuard device and retrieving basic information, but does not yet support retrieving peers from a WireGuard device. Implementation based on [wgctrl-go](https://github.com/WireGuard/wgctrl-go). Until batching is implemented, changing, adding or removing a lot of peers in 1 call will fail. [Example usage](app/Main.hs).
 
 ## Permissions [(source)](https://github.com/gluxon/wireguard-uapi-rs/blob/develop/README.md)
 

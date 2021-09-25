@@ -11,9 +11,11 @@ import qualified Network.WireGuard.Ctrl.Client as Client
 import Network.WireGuard.Ctrl.Config
 import Network.WireGuard.Ctrl.PeerConfig
 import qualified Network.WireGuard.Ctrl.Types as Types
+import Text.Pretty.Simple (pPrint)
 
 main :: IO ()
 main = do
+  let device = "wg0"
   client <- Ctrl.makeClient
   serverPrivateKey <- Types.generatePrivateKey
   let peerPublicKey =
@@ -23,7 +25,7 @@ main = do
               Base16.decode "58402e695ba1772b1cc9309755f043251ea77fdcf10fbe63989ceb7e19321376"
   Client.configureDevice
     client
-    "wg0"
+    device
     ( config
         { privateKey = Just serverPrivateKey,
           peers =
@@ -35,5 +37,7 @@ main = do
             ]
         }
     )
+  deviceInfo <- Client.device client device
   Client.close client
+  pPrint deviceInfo
   putStrLn "Done"

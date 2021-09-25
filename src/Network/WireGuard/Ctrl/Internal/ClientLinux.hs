@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
 module Network.WireGuard.Ctrl.Internal.ClientLinux
@@ -10,20 +11,23 @@ where
 import Control.Exception (throwIO)
 import Data.Atomics.Counter (AtomicCounter)
 import qualified Data.Atomics.Counter as Counter
-import Data.Bifunctor (first)
+import Data.Bifunctor (first, second)
 import qualified Data.Bifunctor as Bifunctor
 import Data.Bits ((.|.))
 import Data.ByteArray (convert, singleton)
 import qualified Data.ByteString as BS
 import Data.ByteString.Unsafe (unsafePackCStringFinalizer)
+import Data.Either (fromRight, partitionEithers)
 import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.IP
 import qualified Data.IP as IP
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty (..))
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import Data.Maybe (catMaybes)
-import Data.Serialize (getByteString, putByteString, runPut)
+import Data.Serialize (putByteString, runPut)
 import qualified Data.Serialize as Serialize
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -32,16 +36,19 @@ import Data.Word (Word16, Word32)
 import Foreign.C (Errno (..), errnoToIOError)
 import Foreign.Marshal.Alloc
 import Foreign.Ptr (Ptr, castPtr)
+import GHC.Base (failIO)
 import Network.Socket (Family (AF_INET, AF_INET6), SockAddr (..), packFamily)
 import Network.Socket.Address (pokeSocketAddress, sizeOfSocketAddress)
 import Network.WireGuard.Ctrl.Client
 import Network.WireGuard.Ctrl.Config (Config)
 import qualified Network.WireGuard.Ctrl.Config as Config
-import Network.WireGuard.Ctrl.Internal.Const (WGCmd)
+import Network.WireGuard.Ctrl.Device (Device)
+import Network.WireGuard.Ctrl.Internal.Const (WGCmd, fNLM_F_DUMP)
 import qualified Network.WireGuard.Ctrl.Internal.Const as Const
+import Network.WireGuard.Ctrl.Internal.ParseLinux
 import Network.WireGuard.Ctrl.PeerConfig as PeerConfig
 import System.Linux.Netlink
-import System.Linux.Netlink.Constants (fNLM_F_ACK, fNLM_F_REQUEST)
+import System.Linux.Netlink.Constants (fNLM_F_ACK, fNLM_F_MULTI, fNLM_F_REQUEST)
 import System.Linux.Netlink.GeNetlink
 import qualified System.Linux.Netlink.GeNetlink as GeNetLink
 import System.Linux.Netlink.GeNetlink.Control (CtrlAttribute (CTRL_ATTR_FAMILY_ID))
@@ -58,7 +65,8 @@ data ClientLinux = ClientLinux
 clientLinux :: ClientLinux -> Client
 clientLinux c =
   Client
-    { configureDevice = configureLinuxDevice c,
+    { device = linuxDevice c,
+      configureDevice = configureLinuxDevice c,
       close = closeLinuxClient c
     }
 
@@ -82,7 +90,7 @@ initClient :: NetlinkSocket -> IO ClientLinux
 initClient s = do
   (pid, mFamID) <- getFamilyIdAndPID s Const.genlName
   {-- familyIdRequest in netlink-hs uses 33 as sequence number --}
-  seqNumCounter <- Counter.newCounter $ 33
+  seqNumCounter <- Counter.newCounter 33
   case mFamID of
     Just famID ->
       pure $
@@ -113,6 +121,21 @@ configureLinuxDevice c name cfg =
         where
           errMsg = "error while configuring wireguard device " ++ T.unpack name
 
+nameAttr :: Text -> (Int, BS.ByteString)
+nameAttr name = (fromEnum Const.DeviceAIfname, encodeUtf8 name <> singleton 0)
+
+linuxDevice :: ClientLinux -> Text -> IO Device
+linuxDevice c name = do
+  let attrs = Map.fromList [nameAttr name]
+  r <- execute c Const.CmdGetDevice (fNLM_F_REQUEST .|. fNLM_F_DUMP .|. fNLM_F_MULTI) attrs
+  case r of
+    Right m -> pure $ parseDevice (m <&> snd)
+    Left errno ->
+      throwIO $
+        errnoToIOError errMsg errno Nothing Nothing
+      where
+        errMsg = "error while retrieving information from wireguard device " ++ T.unpack name
+
 --todo: nested support should be in the netlink library
 nested :: Word16 -> (a -> IO Attributes) -> [a] -> IO (Word16, Maybe BS.ByteString)
 nested typ f list =
@@ -133,7 +156,7 @@ configAttrs name cfg = do
   pure $
     Map.fromList $
       catMaybes $
-        [ (fromEnum Const.DeviceAIfname, Just (encodeUtf8 name <> singleton 0)),
+        [ Just `second` nameAttr name,
           (fromEnum Const.DeviceAPrivateKey, Config.privateKey cfg <&> convert),
           (fromEnum Const.DeviceAListenPort, Config.listenPort cfg <&> (runPut . p16)),
           (fromEnum Const.DeviceAFwmark, Config.firewallMark cfg <&> (runPut . p32)),
@@ -235,7 +258,7 @@ execute ::
   WGCmd ->
   Word16 ->
   Attributes ->
-  IO (Either Errno (GenlData BS.ByteString))
+  IO (Either Errno (NonEmpty (GenlData BS.ByteString, Attributes)))
 execute c command flags attrs = do
   seqInt <- Counter.incrCounter 1 (seqNum c)
   let seqWord = fromIntegral seqInt --todo: does this work when seqnum overflows?
@@ -245,17 +268,22 @@ execute c command flags attrs = do
             genlVersion = Const.genlVersion
           }
       geMessage = GenlData geHeader (runPut $ putAttributes attrs)
-      receivedMessage =
-        queryOne
-          (socket c)
-          (packMessage geMessage (familyID c) flags seqWord (pid c))
-   in receivedMessage
-        >>= ( \case
-                Packet _ gd _ -> pure $ Right gd
+  receivedMessages <-
+    query
+      (socket c)
+      (packMessage geMessage (familyID c) flags seqWord (pid c))
+  messages <-
+    sequence $
+      receivedMessages
+        <&> ( \case
+                Packet _ gd attrs -> pure $ Right (gd, attrs)
                 ErrorMsg _ minusErrno _ -> pure $ Left $ Errno (-1 * minusErrno)
-                DoneMsg _ -> fail "Unexpected done message"
+                DoneMsg _ -> failIO "Unexpected done message"
             )
+  pure $ case partitionEithers messages of
+    ([e], _) -> Left e
+    (_, m) -> Right $ NonEmpty.fromList m
 
 instance Convertable BS.ByteString where
-  getGet n = getByteString (fromIntegral n)
-  getPut = putByteString
+  getGet _ = pure BS.empty -- Used when retrieving information from WG
+  getPut = putByteString -- Used when configuring WG device

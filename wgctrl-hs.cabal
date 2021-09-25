@@ -21,8 +21,11 @@ library
       Network.WireGuard.Ctrl
       Network.WireGuard.Ctrl.Client
       Network.WireGuard.Ctrl.Config
+      Network.WireGuard.Ctrl.Device
       Network.WireGuard.Ctrl.Internal.ClientLinux
       Network.WireGuard.Ctrl.Internal.Const
+      Network.WireGuard.Ctrl.Internal.ParseLinux
+      Network.WireGuard.Ctrl.Internal.Utils
       Network.WireGuard.Ctrl.PeerConfig
       Network.WireGuard.Ctrl.Types
   other-modules:
@@ -50,8 +53,11 @@ executable wgctrl-hs
       Network.WireGuard.Ctrl
       Network.WireGuard.Ctrl.Client
       Network.WireGuard.Ctrl.Config
+      Network.WireGuard.Ctrl.Device
       Network.WireGuard.Ctrl.Internal.ClientLinux
       Network.WireGuard.Ctrl.Internal.Const
+      Network.WireGuard.Ctrl.Internal.ParseLinux
+      Network.WireGuard.Ctrl.Internal.Utils
       Network.WireGuard.Ctrl.PeerConfig
       Network.WireGuard.Ctrl.Types
       Paths_wgctrl_hs
@@ -72,6 +78,7 @@ executable wgctrl-hs
     , memory
     , netlink
     , network
+    , pretty-simple
     , text
   default-language: Haskell2010
 
