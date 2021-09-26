@@ -129,7 +129,7 @@ linuxDevice c name = do
   let attrs = Map.fromList [nameAttr name]
   r <- execute c Const.CmdGetDevice (fNLM_F_REQUEST .|. fNLM_F_DUMP .|. fNLM_F_MULTI) attrs
   case r of
-    Right m -> pure $ parseDevice (m <&> snd)
+    Right m -> pure $ parseDevice m
     Left errno ->
       throwIO $
         errnoToIOError errMsg errno Nothing Nothing
@@ -248,17 +248,17 @@ encodeAllowedIP (IPv6Range r) =
 -- Based on packMessage from mdlayher/genetlink, todo: upstream to netlink?
 -- packMessage packs a generic netlink Message into a netlink.Message with the
 -- appropriate generic netlink family and netlink flags.
-packMessage :: GenlData a -> Word16 -> Word16 -> Word32 -> Word32 -> Packet (GenlData a)
-packMessage msg familyID flags seqNum pid =
+packMessage :: GenlData a -> Attributes -> Word16 -> Word16 -> Word32 -> Word32 -> Packet (GenlData a)
+packMessage msg attrs familyID flags seqNum pid =
   let header = Header (fromIntegral familyID) flags seqNum pid
-   in (Packet {packetHeader = header, packetCustom = msg, packetAttributes = Map.empty})
+   in (Packet {packetHeader = header, packetCustom = msg, packetAttributes = attrs})
 
 execute ::
   ClientLinux ->
   WGCmd ->
   Word16 ->
   Attributes ->
-  IO (Either Errno (NonEmpty (GenlData BS.ByteString, Attributes)))
+  IO (Either Errno (NonEmpty Attributes))
 execute c command flags attrs = do
   seqInt <- Counter.incrCounter 1 (seqNum c)
   let seqWord = fromIntegral seqInt --todo: does this work when seqnum overflows?
@@ -267,23 +267,19 @@ execute c command flags attrs = do
           { genlCmd = fromIntegral $ fromEnum command,
             genlVersion = Const.genlVersion
           }
-      geMessage = GenlData geHeader (runPut $ putAttributes attrs)
+      geMessage = GenlData geHeader NoData
   receivedMessages <-
     query
       (socket c)
-      (packMessage geMessage (familyID c) flags seqWord (pid c))
+      (packMessage geMessage attrs (familyID c) flags seqWord (pid c))
   messages <-
     sequence $
       receivedMessages
         <&> ( \case
-                Packet _ gd attrs -> pure $ Right (gd, attrs)
+                Packet _ _ attrs -> pure $ Right attrs
                 ErrorMsg _ minusErrno _ -> pure $ Left $ Errno (-1 * minusErrno)
                 DoneMsg _ -> failIO "Unexpected done message"
             )
   pure $ case partitionEithers messages of
     ([e], _) -> Left e
     (_, m) -> Right $ NonEmpty.fromList m
-
-instance Convertable BS.ByteString where
-  getGet _ = pure BS.empty -- Used when retrieving information from WG
-  getPut = putByteString -- Used when configuring WG device
